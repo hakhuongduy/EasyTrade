@@ -48,9 +48,9 @@ export default function OrderPanel({ symbol, currentPrice, initialLeverage }: Or
   const collateralNum = parseFloat(collateral) || 0;
   const limitPriceNum = parseFloat(limitPrice) || 0;
   const estimatedEntryPrice = orderType === "limit" && limitPriceNum > 0 ? limitPriceNum : currentPrice;
-  const sizeUSD = collateralNum * leverage;
-  const fee = (sizeUSD * OPENING_FEE_BPS) / BASIS_POINTS;
-  const collateralAfterFee = collateralNum - fee;
+  const fee = (collateralNum * OPENING_FEE_BPS) / BASIS_POINTS;
+  const collateralAfterFee = Math.max(collateralNum - fee, 0);
+  const sizeUSD = collateralAfterFee * leverage;
   const liqPrice = estimatedEntryPrice > 0 && collateralNum > 0
     ? isLong
       ? estimatedEntryPrice * (1 - collateralAfterFee / sizeUSD)
@@ -332,6 +332,7 @@ export default function OrderPanel({ symbol, currentPrice, initialLeverage }: Or
           <div style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 6, padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8, fontSize: 12 }}>
             <Row label="Kích thước" value={`$${sizeUSD.toLocaleString("en-US", { maximumFractionDigits: 2 })}`} bold />
             <Row label="Phí mở lệnh (0.1%)" value={`$${fee.toFixed(4)}`} />
+            <Row label="Ký quỹ sau phí" value={`$${collateralAfterFee.toLocaleString("en-US", { maximumFractionDigits: 4 })}`} />
             <Row label={orderType === "limit" ? "Giá limit" : "Giá Pyth hiện tại"} value={`$${estimatedEntryPrice.toLocaleString("en-US", { maximumFractionDigits: 6 })}`} bold />
             {orderType === "market" && <Row label="Giá khớp thật" value="Theo Pyth khi gửi lệnh" />}
             <Row label="Giá thanh lý" value={liqPrice > 0 ? `$${liqPrice.toLocaleString("en-US", { maximumFractionDigits: 2 })}` : "-"} color="var(--loss)" />

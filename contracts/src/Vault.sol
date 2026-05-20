@@ -150,7 +150,7 @@ contract Vault is Ownable, ReentrancyGuard {
         Position storage position = positions[key];
         (uint256 price,) = oracle.getPrice(_symbol);
 
-        uint256 fee = (_sizeDelta * OPENING_FEE_BPS) / BASIS_POINTS_DIVISOR;
+        uint256 fee = (_collateralDelta * OPENING_FEE_BPS) / BASIS_POINTS_DIVISOR;
         uint256 collateralAfterFee = _collateralDelta - fee;
         feeReserve += fee;
         poolAmount += fee;

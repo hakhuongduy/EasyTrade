@@ -103,7 +103,7 @@ contract VaultRouterTest is Test {
         router.increasePositionForWithPriceUpdate(trader, "BTC", COLLATERAL, POSITION_SIZE, true, emptyPriceUpdateData);
         (uint256 size, uint256 collateral, uint256 avgPrice, bool isLong,) = vault.getPosition(trader, "BTC", true);
         assertEq(size, POSITION_SIZE);
-        assertEq(collateral, COLLATERAL - ((POSITION_SIZE * vault.OPENING_FEE_BPS()) / vault.BASIS_POINTS_DIVISOR()));
+        assertEq(collateral, COLLATERAL - ((COLLATERAL * vault.OPENING_FEE_BPS()) / vault.BASIS_POINTS_DIVISOR()));
         assertEq(avgPrice, BTC_PRICE_INIT);
         assertTrue(isLong);
         assertEq(token.balanceOf(trader), balBefore - COLLATERAL);
