@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const ALLOWED_INTERVALS = new Set(["5m", "1h", "8h", "1d", "3d", "1w"]);
+const KLINE_ENDPOINTS = [
+  "https://data-api.binance.vision/api/v3/klines",
+  "https://api.binance.com/api/v3/klines",
+  "https://api1.binance.com/api/v3/klines",
+];
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -21,25 +26,33 @@ export async function GET(req: NextRequest) {
     limit: String(limit),
   });
 
-  try {
-    const res = await fetch(`https://api.binance.com/api/v3/klines?${params.toString()}`, {
-      cache: "no-store",
-      signal: AbortSignal.timeout(4_000),
-    });
-    const data = await res.json();
+  let lastError = "Cannot load Binance candles";
 
-    if (!res.ok) {
-      return NextResponse.json({
-        success: false,
-        error: typeof data?.msg === "string" ? data.msg : "Cannot load Binance candles",
-      }, { status: res.status });
+  for (const endpoint of KLINE_ENDPOINTS) {
+    try {
+      const res = await fetch(`${endpoint}?${params.toString()}`, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(5_000),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        lastError = typeof data?.msg === "string" ? data.msg : `Binance ${res.status}`;
+        continue;
+      }
+
+      if (!Array.isArray(data)) {
+        lastError = "Invalid Binance candle response";
+        continue;
+      }
+
+      return NextResponse.json({ success: true, candles: data }, {
+        headers: { "Cache-Control": "no-store" },
+      });
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : "Cannot load candles";
     }
-
-    return NextResponse.json({ success: true, candles: data }, {
-      headers: { "Cache-Control": "no-store" },
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Cannot load candles";
-    return NextResponse.json({ success: false, error: message }, { status: 502 });
   }
+
+  return NextResponse.json({ success: false, error: lastError }, { status: 502 });
 }
