@@ -300,7 +300,7 @@ export default function OrderPanel({ symbol, currentPrice, initialLeverage }: Or
           </div>
           <input type="range" min={1} max={50} step={1} value={leverage} onChange={(e) => setLeverage(Number(e.target.value))} />
           <div style={{ display: "flex", justifyContent: "space-between" }}>
-            {[1, 5, 10, 20, 50].map((value) => (
+            {[1, 50].map((value) => (
               <span key={value} onClick={() => setLeverage(value)} style={{ fontSize: 10, color: leverage === value ? "var(--accent)" : "var(--text-muted)", cursor: "pointer", fontWeight: 700 }}>
                 {value}x
               </span>
