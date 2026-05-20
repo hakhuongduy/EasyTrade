@@ -1,0 +1,11 @@
+{
+  "name": "easytrade",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "lint": "npm --prefix frontend run lint",
+    "test:contracts": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& 'C:\\\\Program Files\\\\Git\\\\bin\\\\bash.exe' -lc 'cd /c/Users/Local/Desktop/EasyTrade/contracts && /c/Users/Local/.foundry/bin/forge test'\""
+  }
+}
