@@ -6,6 +6,11 @@ const ROUTER_ABI = [
   "function increasePositionForWithPermitAndPriceUpdate(address account,string symbol,uint256 amountIn,uint256 sizeDelta,bool isLong,bytes[] priceUpdateData,uint256 permitDeadline,uint8 v,bytes32 r,bytes32 s) payable",
 ];
 
+const EUSD_ABI = [
+  "function balanceOf(address) view returns (uint256)",
+  "function allowance(address owner,address spender) view returns (uint256)",
+];
+
 type OpenRequest = {
   account?: string;
   symbol?: string;
@@ -34,6 +39,35 @@ function parsePythPrice(parsed: PythParsed[] | undefined) {
   const expo = parsed?.[0]?.price?.expo ?? 0;
   const price = raw * 10 ** expo;
   return Number.isFinite(price) ? price : 0;
+}
+
+function friendlyOpenError(error: unknown) {
+  const text = error instanceof Error ? error.message : String(error ?? "");
+  const lower = text.toLowerCase();
+  if (
+    lower.includes("erc20insufficientbalance")
+    || lower.includes("insufficient balance")
+    || lower.includes("transfer amount exceeds balance")
+  ) {
+    return "Ví không đủ eUSD để mở lệnh. Hãy giảm ký quỹ hoặc nhận thêm eUSD.";
+  }
+  if (
+    lower.includes("erc20insufficientallowance")
+    || lower.includes("insufficient allowance")
+    || lower.includes("invalid permit")
+  ) {
+    return "Chữ ký cấp quyền eUSD không hợp lệ hoặc đã hết hạn. Hãy thử mở lệnh lại.";
+  }
+  if (lower.includes("invalidleverage")) {
+    return "Đòn bẩy vượt mức cho phép. Hãy giảm đòn bẩy hoặc tăng ký quỹ.";
+  }
+  if (lower.includes("insufficientpoolliquidity")) {
+    return "Pool eUSD không đủ thanh khoản để mở lệnh này.";
+  }
+  if (lower.includes("transaction execution reverted") || lower.includes("call_exception")) {
+    return "Không thể mở lệnh. Kiểm tra số dư eUSD, ký quỹ và thử lại.";
+  }
+  return text.slice(0, 160);
 }
 
 export async function POST(req: NextRequest) {
@@ -75,6 +109,25 @@ export async function POST(req: NextRequest) {
     const provider = new ethers.JsonRpcProvider(rpcUrl);
     const wallet = new ethers.Wallet(privateKey, provider);
     const router = new ethers.Contract(routerAddress, ROUTER_ABI, wallet);
+    const tokenAddress = process.env.NEXT_PUBLIC_EUSD_ADDRESS;
+    if (!tokenAddress) {
+      return NextResponse.json({ success: false, error: "eUSD chua duoc cau hinh" }, { status: 500 });
+    }
+    const token = new ethers.Contract(tokenAddress, EUSD_ABI, provider);
+    const balance = await token.balanceOf(account) as bigint;
+    if (balance < collateralWei) {
+      return NextResponse.json({
+        success: false,
+        error: `Ví không đủ eUSD. Cần ${ethers.formatEther(collateralWei)} eUSD, hiện có ${ethers.formatEther(balance)} eUSD.`,
+      }, { status: 400 });
+    }
+    const allowance = await token.allowance(account, routerAddress) as bigint;
+    if (allowance < collateralWei && permit.deadline < Math.floor(Date.now() / 1000)) {
+      return NextResponse.json({
+        success: false,
+        error: "Chữ ký cấp quyền eUSD đã hết hạn. Hãy thử mở lệnh lại.",
+      }, { status: 400 });
+    }
 
     const updateFee = await router.getOracleUpdateFee(pyth.updateData) as bigint;
     const tx = await router.increasePositionForWithPermitAndPriceUpdate(
@@ -94,7 +147,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, txHash: tx.hash, executionPrice });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Open trade failed";
+    const message = friendlyOpenError(error);
     console.error("[trade/open]", message);
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }

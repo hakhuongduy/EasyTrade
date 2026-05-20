@@ -29,6 +29,16 @@ function normalizeLeverage(value?: number) {
   return Math.min(50, Math.max(1, Math.trunc(value)));
 }
 
+function friendlyTradeError(message: string) {
+  const lower = message.toLowerCase();
+  if (lower.includes("user rejected")) return "Giao dịch đã bị hủy";
+  if (lower.includes("ví không đủ") || lower.includes("không đủ eusd")) return message;
+  if (lower.includes("transaction execution reverted") || lower.includes("call_exception")) {
+    return "Không thể mở lệnh. Kiểm tra số dư eUSD, ký quỹ và thử lại.";
+  }
+  return message.slice(0, 140);
+}
+
 export default function OrderPanel({ symbol, currentPrice, initialLeverage }: OrderPanelProps) {
   const { isConnected, address, refreshBalance } = useWallet();
   const [orderType, setOrderType] = useState<"market" | "limit">("market");
@@ -226,8 +236,9 @@ export default function OrderPanel({ symbol, currentPrice, initialLeverage }: Or
       window.setTimeout(() => window.dispatchEvent(new Event("easytrade:balance-updated")), 1500);
     } catch (e: unknown) {
       const msg = (e as Error)?.message ?? "Giao dịch thất bại";
-      setError(msg.includes("user rejected") ? "Giao dịch đã bị huỷ" : msg.slice(0, 120));
-      window.dispatchEvent(new CustomEvent("easytrade:notify", { detail: { message: msg.includes("user rejected") ? "Giao dịch đã bị hủy" : msg.slice(0, 120), type: "error", scope: "money" } }));
+      const friendlyMessage = friendlyTradeError(msg);
+      setError(friendlyMessage);
+      window.dispatchEvent(new CustomEvent("easytrade:notify", { detail: { message: friendlyMessage, type: "error", scope: "money" } }));
     } finally {
       setLoading(false);
     }
