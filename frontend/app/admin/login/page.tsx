@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function AdminLogin() {
   const router  = useRouter();
@@ -30,6 +31,10 @@ export default function AdminLogin() {
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)" }}>
       <div className="card" style={{ width: 380, padding: "36px 28px" }}>
+        <Link href="/" className="btn btn-outline" style={{ width: "fit-content", minHeight: 30, padding: "5px 10px", fontSize: 12, textDecoration: "none", marginBottom: 22 }}>
+          ← Trang chính
+        </Link>
+
         {/* Logo thật */}
         <div style={{ textAlign: "center", marginBottom: 28 }}>
           <Image src="/easytrade.png" alt="EasyTrade" width={140} height={40} style={{ objectFit: "contain" }} priority />
