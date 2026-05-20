@@ -114,8 +114,27 @@ interface WalletModalProps {
   onClose:  () => void;
 }
 
+function isMobileBrowser() {
+  if (typeof navigator === "undefined") return false;
+  return /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+}
+
+function currentDappUrl() {
+  if (typeof window === "undefined") return "";
+  return window.location.href.replace(/^https?:\/\//, "");
+}
+
+function openMetaMaskMobile() {
+  window.location.href = `https://metamask.app.link/dapp/${currentDappUrl()}`;
+}
+
+function openTrustMobile() {
+  window.location.href = `https://link.trustwallet.com/open_url?coin_id=20000714&url=${encodeURIComponent(window.location.href)}`;
+}
+
 export default function WalletModal({ onSelect, onClose }: WalletModalProps) {
   const [wallets, setWallets] = useState<WalletInfo[]>([]);
+  const mobile = isMobileBrowser();
 
   useEffect(() => {
     const list: WalletInfo[] = [];
@@ -169,13 +188,27 @@ export default function WalletModal({ onSelect, onClose }: WalletModalProps) {
         {/* Wallet list */}
         <div style={{ padding: "12px 16px 20px", display: "flex", flexDirection: "column", gap: 8 }}>
           {wallets.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "24px 0", color: "var(--text-muted)", fontSize: 13 }}>
-              Không tìm thấy ví nào.
-              <br />
-              <a href="https://metamask.io/download/" target="_blank" style={{ color: "var(--accent)", marginTop: 8, display: "inline-block" }}>
-                Cài đặt MetaMask
-              </a>
-            </div>
+            mobile ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ color: "var(--text-muted)", fontSize: 12, lineHeight: 1.6, textAlign: "center", padding: "8px 4px" }}>
+                  Mở trang trong trình duyệt của ví để kết nối.
+                </div>
+                <button type="button" className="btn btn-primary" onClick={openMetaMaskMobile} style={{ width: "100%" }}>
+                  Mở bằng MetaMask
+                </button>
+                <button type="button" className="btn btn-outline" onClick={openTrustMobile} style={{ width: "100%" }}>
+                  Mở bằng Trust Wallet
+                </button>
+              </div>
+            ) : (
+              <div style={{ textAlign: "center", padding: "24px 0", color: "var(--text-muted)", fontSize: 13 }}>
+                Không tìm thấy ví nào.
+                <br />
+                <a href="https://metamask.io/download/" target="_blank" style={{ color: "var(--accent)", marginTop: 8, display: "inline-block" }}>
+                  Cài đặt MetaMask
+                </a>
+              </div>
+            )
           ) : (
             wallets.map((w, i) => (
               <button
