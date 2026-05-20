@@ -2,11 +2,11 @@
   "crons": [
     {
       "path": "/api/keeper",
-      "schedule": "* * * * *"
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/api/tpsl",
-      "schedule": "* * * * *"
+      "schedule": "5 0 * * *"
     }
   ]
 }
