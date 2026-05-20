@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ethers } from "ethers";
-import { getActivePendingOrders, updateOrderStatus } from "@/lib/orders";
+import { getActivePendingOrders, getUserPendingOrders, updateOrderStatus } from "@/lib/orders";
 import { getPythFeedIds } from "@/lib/pyth";
 
 const ROUTER_ABI = [
@@ -9,9 +9,15 @@ const ROUTER_ABI = [
   "function decreasePositionForWithPriceUpdate(address, string, uint256, uint256, bool, address, bytes[] calldata) external payable",
 ];
 
+function normalizeFeedId(feedId: string) {
+  return feedId.trim().replace(/^0x/i, "").toLowerCase();
+}
+
 async function fetchPythUpdate(symbols: string[]) {
   const feedIds = await getPythFeedIds();
   const uniqueSymbols = [...new Set(symbols)].filter((s) => feedIds[s]);
+  if (uniqueSymbols.length === 0) return { updateData: [], prices: {} as Record<string, number> };
+
   const params = new URLSearchParams({ encoding: "hex", parsed: "true" });
   for (const symbol of uniqueSymbols) params.append("ids[]", feedIds[symbol]);
 
@@ -27,8 +33,9 @@ async function fetchPythUpdate(symbols: string[]) {
   };
 
   const prices: Record<string, number> = {};
+  const symbolByFeedId = new Map(uniqueSymbols.map((symbol) => [normalizeFeedId(feedIds[symbol]), symbol]));
   for (const item of data.parsed ?? []) {
-    const symbol = uniqueSymbols.find((s) => feedIds[s] === item.id);
+    const symbol = symbolByFeedId.get(normalizeFeedId(item.id));
     if (symbol) prices[symbol] = Number(item.price.price) * Math.pow(10, item.price.expo);
   }
 
@@ -48,10 +55,9 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const allOrders = await getActivePendingOrders();
     const orders = isClientAccountCheck
-      ? allOrders.filter((order) => order.account.toLowerCase() === account.toLowerCase())
-      : allOrders;
+      ? (await getUserPendingOrders(account)).filter((order) => order.status === "active")
+      : await getActivePendingOrders();
     if (orders.length === 0) {
       return NextResponse.json({ success: true, checked: 0, executed: 0 });
     }
@@ -67,7 +73,11 @@ export async function GET(req: NextRequest) {
 
     for (const order of orders) {
       const currentPrice = prices[order.symbol];
-      if (!currentPrice || !order.id) continue;
+      if (!order.id) continue;
+      if (!currentPrice) {
+        errors.push(`${order.id}: missing Pyth price for ${order.symbol}`);
+        continue;
+      }
 
       const hitTP = order.tp !== null && (order.isLong ? currentPrice >= order.tp : currentPrice <= order.tp);
       const hitSL = order.sl !== null && (order.isLong ? currentPrice <= order.sl : currentPrice >= order.sl);

@@ -71,15 +71,24 @@ export async function savePendingOrder(
 }
 
 export async function getActivePendingOrders(): Promise<PendingOrder[]> {
-  const q = query(
-    collection(db, "pending_orders"),
-    where("status", "==", "active"),
-    orderBy("createdAt", "asc")
-  );
-  const snap = await getDocs(q);
-  return snap.docs
-    .map((d) => ({ id: d.id, ...d.data() } as PendingOrder & { limitPrice?: number }))
-    .filter((order) => typeof order.limitPrice !== "number");
+  try {
+    const q = query(
+      collection(db, "pending_orders"),
+      where("status", "==", "active"),
+      orderBy("createdAt", "asc")
+    );
+    const snap = await getDocs(q);
+    return snap.docs
+      .map((d) => ({ id: d.id, ...d.data() } as PendingOrder & { limitPrice?: number }))
+      .filter((order) => typeof order.limitPrice !== "number");
+  } catch {
+    const fallback = query(collection(db, "pending_orders"), where("status", "==", "active"));
+    const snap = await getDocs(fallback);
+    return snap.docs
+      .map((d) => ({ id: d.id, ...d.data() } as PendingOrder & { limitPrice?: number }))
+      .filter((order) => typeof order.limitPrice !== "number")
+      .sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0));
+  }
 }
 
 export async function getUserPendingOrders(account: string): Promise<PendingOrder[]> {

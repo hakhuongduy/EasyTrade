@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWallet } from "@/hooks/useWallet";
 import { usePositions } from "@/hooks/usePosition";
 import { getPnLHistory, savePnLRecord, type PnLRecord } from "@/lib/firestore";
@@ -36,6 +36,8 @@ export default function PositionTabs({ selectedAsset, symbols, livePrices }: Pos
   const [editingTPSL, setEditingTPSL] = useState<{ symbol: string; isLong: boolean; existing?: PendingOrder } | null>(null);
   const [tpDraft, setTpDraft] = useState("");
   const [slDraft, setSlDraft] = useState("");
+  const tpslInFlightRef = useRef(false);
+  const lastTPSLTriggerRef = useRef("");
 
   const visiblePositions = positions.filter((pos) => pos.symbol === selectedAsset);
   const visiblePending = pendingOrders.filter((order) => order.symbol === selectedAsset);
@@ -58,6 +60,18 @@ export default function PositionTabs({ selectedAsset, symbols, livePrices }: Pos
     const sign = value >= 0 ? "+" : "-";
     return `${sign}$${Math.abs(value).toLocaleString("vi-VN", { maximumFractionDigits: 2 })}`;
   };
+
+  const isTPSLTriggered = useCallback((order: PendingOrder, price?: number) => {
+    if (!price) return false;
+    const hitTP = order.tp !== null && (order.isLong ? price >= order.tp : price <= order.tp);
+    const hitSL = order.sl !== null && (order.isLong ? price <= order.sl : price >= order.sl);
+    return hitTP || hitSL;
+  }, []);
+
+  const triggeredTPSLKey = useMemo(() => pendingOrders
+    .filter((order) => isTPSLTriggered(order, livePrices?.[order.symbol]))
+    .map((order) => `${order.id}:${livePrices?.[order.symbol]}`)
+    .join("|"), [isTPSLTriggered, livePrices, pendingOrders]);
 
   const loadPendingOrders = useCallback(async () => {
     if (!address) return;
@@ -96,8 +110,9 @@ export default function PositionTabs({ selectedAsset, symbols, livePrices }: Pos
       inFlight = true;
       try {
         const res = await fetch(`/api/tpsl?account=${encodeURIComponent(address)}`, { cache: "no-store" });
-        const data = await res.json() as { success?: boolean; executed?: number; errors?: string[] };
-        if (data.success && data.executed && data.executed > 0) {
+        const data = await res.json() as { success?: boolean; executed?: number; error?: string; errors?: string[] };
+        if (!res.ok || !data.success) throw new Error(data.error ?? "TP/SL keeper failed");
+        if (data.executed && data.executed > 0) {
           await loadPendingOrders();
           await refreshHistory();
           window.dispatchEvent(new Event("easytrade:positions-updated"));
@@ -106,21 +121,51 @@ export default function PositionTabs({ selectedAsset, symbols, livePrices }: Pos
         } else if (data.errors && data.errors.length > 0) {
           notify(data.errors[0], "error", "money");
         }
-      } catch {
-        // Keeper polling is best-effort; the scheduled cron remains the fallback.
+      } catch (error) {
+        notify((error as Error)?.message ?? "TP/SL keeper failed", "error", "money");
       } finally {
         inFlight = false;
       }
     };
 
     void runTPSLKeeper();
-    const interval = window.setInterval(runTPSLKeeper, 2_000);
+    const interval = window.setInterval(runTPSLKeeper, 1_000);
     window.addEventListener("focus", runTPSLKeeper);
     return () => {
       window.clearInterval(interval);
       window.removeEventListener("focus", runTPSLKeeper);
     };
   }, [address, isConnected, loadPendingOrders, pendingOrders.length, refreshHistory]);
+
+  useEffect(() => {
+    if (!isConnected || !address || !triggeredTPSLKey || triggeredTPSLKey === lastTPSLTriggerRef.current || document.hidden) return;
+    if (tpslInFlightRef.current) return;
+    lastTPSLTriggerRef.current = triggeredTPSLKey;
+    tpslInFlightRef.current = true;
+
+    const executeTriggeredTPSL = async () => {
+      try {
+        const res = await fetch(`/api/tpsl?account=${encodeURIComponent(address)}`, { cache: "no-store" });
+        const data = await res.json() as { success?: boolean; executed?: number; error?: string; errors?: string[] };
+        if (!res.ok || !data.success) throw new Error(data.error ?? "TP/SL keeper failed");
+        if (data.executed && data.executed > 0) {
+          await loadPendingOrders();
+          await refreshHistory();
+          window.dispatchEvent(new Event("easytrade:positions-updated"));
+          window.dispatchEvent(new Event("easytrade:balance-updated"));
+          notify("TP/SL đã khớp", "success", "money");
+        } else if (data.errors && data.errors.length > 0) {
+          notify(data.errors[0], "error", "money");
+        }
+      } catch (error) {
+        notify((error as Error)?.message ?? "TP/SL keeper failed", "error", "money");
+      } finally {
+        tpslInFlightRef.current = false;
+      }
+    };
+
+    void executeTriggeredTPSL();
+  }, [address, isConnected, loadPendingOrders, refreshHistory, triggeredTPSLKey]);
 
   const handleTabChange = async (tab: Tab) => {
     setActiveTab(tab);
@@ -280,7 +325,7 @@ export default function PositionTabs({ selectedAsset, symbols, livePrices }: Pos
                 const isProfit = displayPnl >= 0;
                 const activeTPSL = pendingOrders.find((order) => order.symbol === pos.symbol && order.isLong === pos.isLong);
                 return (
-                  <div key={key} style={{ padding: 12, border: "1px solid var(--border)", borderRadius: 4, display: "grid", gridTemplateColumns: "150px repeat(7, minmax(74px, 1fr)) 96px", alignItems: "center", gap: 12 }}>
+                  <div key={key} style={{ padding: 12, border: "1px solid var(--border)", borderRadius: 4, display: "grid", gridTemplateColumns: "minmax(140px, 1.25fr) repeat(6, minmax(74px, 1fr)) minmax(132px, auto) minmax(112px, auto)", alignItems: "center", gap: 12 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                       <span className={`badge ${pos.isLong ? "badge-profit" : "badge-loss"}`}>{pos.isLong ? "LONG" : "SHORT"}</span>
                       <span style={{ fontWeight: 800 }}>{pos.symbol}/eUSD</span>
@@ -293,14 +338,14 @@ export default function PositionTabs({ selectedAsset, symbols, livePrices }: Pos
                     <Metric label="PnL" value={livePnl === null ? pos.pnl : formatPnl(livePnl)} color={isProfit ? "var(--profit)" : "var(--loss)"} />
                     <div style={{ fontSize: 12, minWidth: 0 }}>
                       <div style={{ color: "var(--text-muted)", fontSize: 11 }}>TP/SL</div>
-                      <button type="button" onClick={() => handleEditTPSL(pos.symbol, pos.isLong, activeTPSL)} className="btn btn-outline" style={{ minHeight: 28, padding: "4px 9px", fontSize: 11 }}>
+                      <button type="button" onClick={() => handleEditTPSL(pos.symbol, pos.isLong, activeTPSL)} className="btn btn-outline" style={{ minHeight: 28, padding: "4px 9px", fontSize: 11, width: "100%", whiteSpace: "nowrap" }}>
                         {activeTPSL ? `${activeTPSL.tp ?? "-"} / ${activeTPSL.sl ?? "-"}` : "Đặt TP/SL"}
                       </button>
                     </div>
                     <button
                       type="button"
                       className="btn btn-outline"
-                      style={{ fontSize: 11, padding: "5px 10px" }}
+                      style={{ fontSize: 11, padding: "5px 10px", minWidth: 112, whiteSpace: "nowrap" }}
                       disabled={closingKey === key}
                       onClick={() => handleClosePosition(pos.symbol, pos.isLong)}
                     >
