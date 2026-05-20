@@ -342,15 +342,18 @@ export default function PositionTabs({ selectedAsset, symbols, livePrices }: Pos
                         {activeTPSL ? `${activeTPSL.tp ?? "-"} / ${activeTPSL.sl ?? "-"}` : "Đặt TP/SL"}
                       </button>
                     </div>
-                    <button
-                      type="button"
-                      className="btn btn-outline position-row-close"
-                      style={{ fontSize: 11, padding: "5px 10px", minWidth: 112, whiteSpace: "nowrap" }}
-                      disabled={closingKey === key}
-                      onClick={() => handleClosePosition(pos.symbol, pos.isLong)}
-                    >
-                      {closingKey === key ? "Đang đóng..." : "Đóng lệnh"}
-                    </button>
+                    <div className="position-row-close-wrap" style={{ fontSize: 12, minWidth: 0 }}>
+                      <div aria-hidden="true" style={{ visibility: "hidden", fontSize: 11 }}>Action</div>
+                      <button
+                        type="button"
+                        className="btn btn-outline position-row-close"
+                        style={{ fontSize: 11, padding: "5px 10px", minWidth: 112, width: "100%", whiteSpace: "nowrap" }}
+                        disabled={closingKey === key}
+                        onClick={() => handleClosePosition(pos.symbol, pos.isLong)}
+                      >
+                        {closingKey === key ? "Đang đóng..." : "Đóng lệnh"}
+                      </button>
+                    </div>
                   </div>
                 );
               })}

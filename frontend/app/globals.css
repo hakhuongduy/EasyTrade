@@ -307,7 +307,7 @@ input[type="range"]::-webkit-slider-thumb {
   }
   .position-row-symbol,
   .position-row-tpsl,
-  .position-row-close {
+  .position-row-close-wrap {
     grid-column: span 2;
   }
 }
