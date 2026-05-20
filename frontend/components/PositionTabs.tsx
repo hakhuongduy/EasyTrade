@@ -325,8 +325,8 @@ export default function PositionTabs({ selectedAsset, symbols, livePrices }: Pos
                 const isProfit = displayPnl >= 0;
                 const activeTPSL = pendingOrders.find((order) => order.symbol === pos.symbol && order.isLong === pos.isLong);
                 return (
-                  <div key={key} style={{ padding: 12, border: "1px solid var(--border)", borderRadius: 4, display: "grid", gridTemplateColumns: "minmax(140px, 1.25fr) repeat(6, minmax(74px, 1fr)) minmax(132px, auto) minmax(112px, auto)", alignItems: "center", gap: 12 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                  <div key={key} className="position-row" style={{ padding: 12, border: "1px solid var(--border)", borderRadius: 4, display: "grid", gridTemplateColumns: "minmax(140px, 1.25fr) repeat(6, minmax(74px, 1fr)) minmax(132px, auto) minmax(112px, auto)", alignItems: "center", gap: 12 }}>
+                    <div className="position-row-symbol" style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                       <span className={`badge ${pos.isLong ? "badge-profit" : "badge-loss"}`}>{pos.isLong ? "LONG" : "SHORT"}</span>
                       <span style={{ fontWeight: 800 }}>{pos.symbol}/eUSD</span>
                     </div>
@@ -336,7 +336,7 @@ export default function PositionTabs({ selectedAsset, symbols, livePrices }: Pos
                     <Metric label="Giá vào" value={`$${pos.averagePrice}`} />
                     <Metric label="Thanh lý" value={pos.liquidationPrice > 0 ? `$${pos.liquidationPrice.toLocaleString("vi-VN", { maximumFractionDigits: 2 })}` : "-"} />
                     <Metric label="PnL" value={livePnl === null ? pos.pnl : formatPnl(livePnl)} color={isProfit ? "var(--profit)" : "var(--loss)"} />
-                    <div style={{ fontSize: 12, minWidth: 0 }}>
+                    <div className="position-row-tpsl" style={{ fontSize: 12, minWidth: 0 }}>
                       <div style={{ color: "var(--text-muted)", fontSize: 11 }}>TP/SL</div>
                       <button type="button" onClick={() => handleEditTPSL(pos.symbol, pos.isLong, activeTPSL)} className="btn btn-outline" style={{ minHeight: 28, padding: "4px 9px", fontSize: 11, width: "100%", whiteSpace: "nowrap" }}>
                         {activeTPSL ? `${activeTPSL.tp ?? "-"} / ${activeTPSL.sl ?? "-"}` : "Đặt TP/SL"}
@@ -344,7 +344,7 @@ export default function PositionTabs({ selectedAsset, symbols, livePrices }: Pos
                     </div>
                     <button
                       type="button"
-                      className="btn btn-outline"
+                      className="btn btn-outline position-row-close"
                       style={{ fontSize: 11, padding: "5px 10px", minWidth: 112, whiteSpace: "nowrap" }}
                       disabled={closingKey === key}
                       onClick={() => handleClosePosition(pos.symbol, pos.isLong)}

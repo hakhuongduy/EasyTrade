@@ -281,8 +281,36 @@ input[type="range"]::-webkit-slider-thumb {
 .trading-main { min-width: 0; }
 .chart-panel { background: var(--bg); }
 .positions-panel { background: var(--bg-secondary); }
+.position-row { min-width: 0; }
 .side-panel { background: var(--bg-secondary); }
 .pool-card { box-shadow: none; }
+
+@media (max-width: 1280px) {
+  .position-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+  .position-row-symbol {
+    grid-column: span 2;
+  }
+  .position-row-tpsl {
+    grid-column: span 2;
+  }
+  .position-row-close {
+    width: 100%;
+    min-width: 0 !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .position-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .position-row-symbol,
+  .position-row-tpsl,
+  .position-row-close {
+    grid-column: span 2;
+  }
+}
 
 .admin-shell { color: var(--text-primary); }
 .admin-sidebar {
