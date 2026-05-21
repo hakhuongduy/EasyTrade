@@ -296,8 +296,11 @@ input[type="range"]::-webkit-slider-thumb {
     grid-column: span 2;
   }
   .position-row-close {
-    width: 100%;
+    width: auto;
     min-width: 0 !important;
+  }
+  .position-row-close-wrap {
+    justify-self: start;
   }
 }
 

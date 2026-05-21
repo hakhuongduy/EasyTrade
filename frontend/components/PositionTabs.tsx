@@ -347,11 +347,11 @@ export default function PositionTabs({ selectedAsset, symbols, livePrices }: Pos
                       <button
                         type="button"
                         className="btn btn-outline position-row-close"
-                        style={{ fontSize: 11, padding: "5px 10px", minWidth: 112, width: "100%", whiteSpace: "nowrap" }}
+                        style={{ fontSize: 11, padding: "5px 8px", minWidth: 78, width: "auto", whiteSpace: "nowrap" }}
                         disabled={closingKey === key}
                         onClick={() => handleClosePosition(pos.symbol, pos.isLong)}
                       >
-                        {closingKey === key ? "Đang đóng..." : "Đóng lệnh"}
+                        {closingKey === key ? "Đang..." : "Đóng"}
                       </button>
                     </div>
                   </div>
